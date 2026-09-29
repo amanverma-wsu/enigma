@@ -1,0 +1,12 @@
+{
+  "name": "enigma",
+  "version": "1.0.0",
+  "description": "A working 3D Enigma I cipher machine you can type on, dismantle and learn from.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test",
+    "start": "npx --yes http-server -p 8080 -c-1 ."
+  },
+  "license": "MIT"
+}
