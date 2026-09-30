@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Enigma I Simulator</title>
+  <meta name="description" content="A working 3D Enigma I cipher machine you can type on, take apart, and learn from.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23161411'/%3E%3Ccircle cx='16' cy='16' r='9' fill='%23ffb23a'/%3E%3Ctext x='16' y='21' font-family='monospace' font-weight='700' font-size='14' text-anchor='middle' fill='%23161411'%3EE%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/style.css">
+  <script type="importmap">
+    { "imports": { "three": "./vendor/three.module.min.js", "three/addons/": "./vendor/" } }
+  </script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">ENIGMA I</span>
+      <span class="brand-sub">Chiffriermaschine · 3D simulator</span>
+    </div>
+    <div class="toolbar" role="toolbar" aria-label="View controls">
+      <button id="btnLid" class="tb" aria-pressed="true" title="Open or close the wooden lid">Lid</button>
+      <button id="btnCover" class="tb" aria-pressed="false" title="Open the rotor cover to see the rotors">Rotor cover</button>
+      <button id="btnXray" class="tb" aria-pressed="false" title="Make the case transparent">X-ray</button>
+      <button id="btnPath" class="tb" aria-pressed="false" title="Show the electrical path of the last key press">Current path</button>
+      <div class="explode">
+        <button id="btnExplode" class="tb accent" aria-pressed="false">Dismantle</button>
+        <input id="explodeSlider" type="range" min="0" max="1000" value="0" aria-label="Dismantle amount">
+      </div>
+      <button id="btnView" class="tb" title="Reset camera">Reset view</button>
+      <button id="btnSound" class="tb icon" aria-pressed="true" title="Sound on/off">♪</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section id="stage" class="stage" aria-label="3D Enigma machine">
+      <div id="tooltip" class="tooltip" hidden></div>
+      <div class="hint">Type on your keyboard or click the keys · drag to orbit · scroll to zoom · click a thumbwheel to turn a rotor</div>
+      <div class="tape" aria-live="polite">
+        <div class="tape-row"><span class="tape-label">IN</span><span id="tapeIn" class="tape-text"></span></div>
+        <div class="tape-row"><span class="tape-label out">OUT</span><span id="tapeOut" class="tape-text out"></span></div>
+        <div class="tape-actions">
+          <button id="btnCopy" class="mini">Copy output</button>
+          <button id="btnClearTape" class="mini">Clear</button>
+        </div>
+      </div>
+      <div id="loading" class="loading"><div class="spinner"></div><p>Assembling the machine…</p></div>
+    </section>
+
+    <aside id="panel" class="panel">
+      <button id="panelToggle" class="panel-toggle" aria-expanded="true">Panel</button>
+      <nav class="tabs" role="tablist">
+        <button role="tab" class="tab active" data-tab="machine" aria-selected="true">Machine</button>
+        <button role="tab" class="tab" data-tab="signal" aria-selected="false">Signal</button>
+        <button role="tab" class="tab" data-tab="learn" aria-selected="false">Learn</button>
+        <button role="tab" class="tab" data-tab="parts" aria-selected="false">Parts</button>
+      </nav>
+
+      <div class="tab-body" data-body="machine">
+        <div class="windows" aria-label="Rotor windows">
+          <div class="win-group" data-rotor="0"><button class="wbtn up" aria-label="Left rotor up">▲</button><div class="win-letter">A</div><button class="wbtn down" aria-label="Left rotor down">▼</button></div>
+          <div class="win-group" data-rotor="1"><button class="wbtn up" aria-label="Middle rotor up">▲</button><div class="win-letter">A</div><button class="wbtn down" aria-label="Middle rotor down">▼</button></div>
+          <div class="win-group" data-rotor="2"><button class="wbtn up" aria-label="Right rotor up">▲</button><div class="win-letter">A</div><button class="wbtn down" aria-label="Right rotor down">▼</button></div>
+        </div>
+
+        <fieldset class="group">
+          <legend>Walzenlage · rotor order</legend>
+          <div class="grid3">
+            <label>Left<select id="rotorL"></select></label>
+            <label>Middle<select id="rotorM"></select></label>
+            <label>Right<select id="rotorR"></select></label>
+          </div>
+          <label class="row">Reflector
+            <select id="reflector"><option>A</option><option selected>B</option><option>C</option></select>
+          </label>
+        </fieldset>
+
+        <fieldset class="group">
+          <legend>Ringstellung · ring settings</legend>
+          <div class="grid3">
+            <select id="ringL" aria-label="Left ring"></select>
+            <select id="ringM" aria-label="Middle ring"></select>
+            <select id="ringR" aria-label="Right ring"></select>
+          </div>
+        </fieldset>
+
+        <fieldset class="group">
+          <legend>Steckerverbindungen · plugboard</legend>
+          <input id="plugInput" type="text" spellcheck="false" autocomplete="off" placeholder="e.g. AV BS CG DL">
+          <div class="btnrow">
+            <button id="plugApply" class="mini">Apply</button>
+            <button id="plugRandom" class="mini">Random 10</button>
+            <button id="plugClear" class="mini">Clear</button>
+          </div>
+          <p id="plugMsg" class="msg" role="status"></p>
+          <p class="small">You can also click sockets on the front of the machine to plug cables.</p>
+        </fieldset>
+
+        <fieldset class="group">
+          <legend>Presets</legend>
+          <select id="preset"></select>
+          <p id="presetHint" class="small"></p>
+          <div class="btnrow">
+            <button id="btnTypeCipher" class="mini" hidden>Auto-type the ciphertext</button>
+            <button id="btnResetPos" class="mini">Reset to start position</button>
+          </div>
+        </fieldset>
+
+        <fieldset class="group">
+          <legend>Type a message</legend>
+          <textarea id="typeInput" rows="2" spellcheck="false" placeholder="Paste text and press Run. Letters only; others are skipped."></textarea>
+          <div class="btnrow"><button id="btnRun" class="mini">Run</button><button id="btnStop" class="mini" hidden>Stop</button></div>
+        </fieldset>
+      </div>
+
+      <div class="tab-body" data-body="signal" hidden>
+        <p class="small">Press a key to trace the current. <span class="sw fwd"></span> toward the reflector, <span class="sw back"></span> back to the lamps.</p>
+        <div id="diagram"></div>
+        <ol id="stageList" class="stages"></ol>
+      </div>
+
+      <div class="tab-body" data-body="learn" hidden>
+        <div class="lesson-nav">
+          <button id="lessonPrev" class="mini" aria-label="Previous lesson">◀</button>
+          <span id="lessonCount">1 / 9</span>
+          <button id="lessonNext" class="mini" aria-label="Next lesson">▶</button>
+        </div>
+        <article id="lesson" class="lesson"></article>
+        <button id="lessonShow" class="tb accent wide">Show me on the machine</button>
+      </div>
+
+      <div class="tab-body" data-body="parts" hidden>
+        <p class="small">Click a part in 3D, or pick one below. Try <b>Dismantle</b> first to see everything.</p>
+        <div id="partList" class="part-list"></div>
+        <article id="partInfo" class="part-info"></article>
+      </div>
+    </aside>
+  </main>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
